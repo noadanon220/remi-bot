@@ -3,6 +3,8 @@ package com.danono.remi_bot.service;
 import com.danono.remi_bot.model.IntentResult;
 import com.danono.remi_bot.model.MessageIntent;
 import com.danono.remi_bot.model.Reminder;
+import com.danono.remi_bot.model.ReminderExtractionResult;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.stereotype.Service;
 
@@ -87,9 +89,51 @@ public class MessageService {
     }
 
     private String handleCreateReminder(String sender, String messageBody) {
-        Reminder reminder = new Reminder(sender, messageBody, messageBody);
+
+        ReminderExtractionResult result = extractReminderDetails(messageBody);
+
+        Reminder reminder = new Reminder(
+                sender,
+                messageBody,
+                result.getTask(),
+                result.getTime()
+        );
+
         reminderService.saveReminder(reminder);
 
-        return "שמרתי תזכורת: " + messageBody;
+        return "שמרתי תזכורת: " + result.getTask() +
+                (result.getTime() != null ? " בזמן: " + result.getTime() : "");
+    }
+
+
+    private ReminderExtractionResult extractReminderDetails(String messageBody) {
+
+        String prompt = """
+    Extract reminder details from the user's message.
+
+    Return JSON with this structure:
+    {
+      "task": "...",
+      "time": "..."
+    }
+
+    If time is not specified, return null for time.
+
+    Only return JSON.
+    """;
+
+        String response = chatClient.prompt()
+                .system(prompt)
+                .user(messageBody)
+                .call()
+                .content();
+
+        try {
+            ObjectMapper mapper = new ObjectMapper();
+            return mapper.readValue(response, ReminderExtractionResult.class);
+        } catch (Exception e) {
+            System.out.println("Failed to parse reminder JSON: " + response);
+            return new ReminderExtractionResult(messageBody, null);
+        }
     }
 }
