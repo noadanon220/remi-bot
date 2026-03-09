@@ -14,7 +14,7 @@ public class MessageService {
     private final ChatClient chatClient;
     private final ReminderService reminderService;
 
-    public MessageService(ChatClient.Builder chatClientBuilder, ReminderService reminderService) {
+    public MessageService(ChatClient.Builder chatClientBuilder, ReminderService reminderService, TwilioService twilioService) {
         this.chatClient = chatClientBuilder.build();
         this.reminderService = reminderService;
     }
@@ -105,22 +105,37 @@ public class MessageService {
                 (result.getTime() != null ? " בזמן: " + result.getTime() : "");
     }
 
-
     private ReminderExtractionResult extractReminderDetails(String messageBody) {
 
         String prompt = """
-    Extract reminder details from the user's message.
+                Extract reminder details from the user's message.
 
-    Return JSON with this structure:
-    {
-      "task": "...",
-      "time": "..."
-    }
+                Return JSON with this exact structure:
+                {
+                  "task": "...",
+                  "time": "..."
+                }
 
-    If time is not specified, return null for time.
+                Rules:
+                - "task" should contain only the action/task itself.
+                - "time" should be in ISO LocalDateTime format: yyyy-MM-ddTHH:mm
+                - If the user gives only a time for today, convert it to today's full date and time.
+                - If the user says "tomorrow", convert it to tomorrow's date.
+                - If no time is specified, return null for time.
+                - Return only valid JSON, nothing else.
 
-    Only return JSON.
-    """;
+                Current date and time:
+                """ + java.time.LocalDateTime.now() + """
+
+                Examples:
+                User: תזכיר לי לשתות מים היום ב-18:00
+                Response:
+                {"task":"לשתות מים","time":"2026-03-08T18:00"}
+
+                User: תזכיר לי להתקשר לוטרינרית מחר ב-12:45
+                Response:
+                {"task":"להתקשר לוטרינרית","time":"2026-03-09T12:45"}
+                """;
 
         String response = chatClient.prompt()
                 .system(prompt)

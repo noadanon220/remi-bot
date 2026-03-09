@@ -6,12 +6,14 @@ public class Reminder {
     private final String originalMessage;
     private final String extractedTask;
     private final String extractedTime;
+    private boolean triggered;
 
     public Reminder(String sender, String originalMessage, String extractedTask, String extractedTime) {
         this.sender = sender;
         this.originalMessage = originalMessage;
         this.extractedTask = extractedTask;
         this.extractedTime = extractedTime;
+        this.triggered = false;
     }
 
     public String getSender() {
@@ -28,5 +30,13 @@ public class Reminder {
 
     public String getExtractedTime() {
         return extractedTime;
+    }
+
+    public boolean isTriggered() {
+        return triggered;
+    }
+
+    public void setTriggered(boolean triggered) {
+        this.triggered = triggered;
     }
 }
